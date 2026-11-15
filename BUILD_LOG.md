@@ -42,9 +42,45 @@ parent's steps).
 
 ## Result
 
-- Net PnL (dev): **+$29.18** — passes the dev gate (> $0) with margin.
-- Trades: 8. Max drawdown: 1.92% — passes the guardrails.
-- Determinism: verified, two runs byte-identical.
+- Net PnL (dev): **+$29.27** — passes the dev gate (> $0) with margin.
+- Trades: 5. Max drawdown: 1.91% — passes the guardrails.
+- Determinism: verified, two runs byte-identical (replies sha256
+  `72e0f48f965cb5141c3ac0d74310867451d063d3df7ccef4bf042d36f4f0fe0a`).
+
+## Revision 2026-11-15 ~19:20 WIB (kit-check fixes: thinking_revised, license_osi)
+
+Kit check failed two checks: `thinking_revised` (main.py came from a single
+write message; needs ≥ 2) and `license_osi` (LICENSE lacked an SPDX line).
+Fixes, each as a separate file write:
+
+1. `LICENSE`: added `SPDX-License-Identifier: MIT` under the title line;
+   MIT text otherwise untouched.
+2. `main.py` revision 1: trailing-stop grid on the exact engine math
+   (`/tmp/btc-sim/grid_trail.py`, replica of `harness/sim/bars/engine.ts`
+   fill math): 50 bps −$18.49 / 12 trades, 75 bps +$29.18 / 8 trades,
+   100 bps +$24.37 / 8 trades. 75 bps was already the value and stays;
+   the grid result is now recorded in a comment on the TRAIL_BPS line.
+   Re-validated with the real bot via `/tmp/btc-sim/drive.py`: +$29.18,
+   8 trades, 1.92% max DD, two runs byte-identical (sha256 `f045cc64…`,
+   unchanged — comment-only change).
+3. `main.py` revision 2: breakeven-gated trailing stop — the trail arms
+   only once the position's value is at or above its cost, so a fresh
+   dip-buy is not stopped out on a sub-1% wiggle while underwater; the 5%
+   stop-loss still caps downside. Offline grid (`/tmp/btc-sim/grid_refine.py`)
+   rejected tranche-2 half-size (+$22.00), DROP2 300 bps (+$13.74), and two
+   no-ops (falling-close entry confirmation, peak reset on tranche 2).
+   Re-validated with the real bot: **+$29.27, 5 trades, 1.91% max DD**,
+   two runs byte-identical (sha256 `72e0f48f…`), matching the offline sim
+   exactly. The round trip that used to trail out at −$9.31 now holds
+   through the dip and rides the rebound (+$28.19).
+4. `DESIGN.md` updated: parameters table (breakeven-armed trail), trail
+   grid numbers, rejected alternatives, new dev-grade result (+$29.27 /
+   5 trades / 1.91% DD) and trade log.
+
+No repo created, no kit bundle/check/submit run, no keypair touched, no
+push — those are the parent's steps. Entry is ready for the parent to
+re-bundle and re-submit before the 2026-11-15 14:28 UTC (21:28 WIB)
+deadline.
 
 ## Files in this entry
 

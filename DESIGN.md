@@ -3,7 +3,8 @@
 ## Strategy in one line
 
 Dip-buying mean reversion: buy cbBTC in two tranches on a 2.25–2.75% pullback
-from the 60-bar high, exit on a 0.75% trailing stop or a 5% stop-loss.
+from the 60-bar high, exit on a 0.75% trailing stop (armed only at or above
+breakeven) or a 5% stop-loss.
 
 ## Why this shape
 
@@ -28,25 +29,34 @@ from the 60-bar high, exit on a 0.75% trailing stop or a 5% stop-loss.
 | `LOOKBACK` | 60 bars | rolling-high window (closes, current bar included) |
 | `DROP1_BPS` | 225 | tranche 1: close 2.25% below rolling high, buy 50% of cash |
 | `DROP2_BPS` | 275 | tranche 2: close 2.75% below rolling high, buy rest of cash |
-| `TRAIL_BPS` | 75 | trailing stop: 0.75% below peak close since entry |
+| `TRAIL_BPS` | 75 | trailing stop: 0.75% below peak close since entry, armed only once the position is at or above breakeven |
 | `SL_BPS` | 500 | stop-loss: position worth 5% below cost |
 | `MAX_SLIPPAGE_BPS` | 100 | order rejected rather than filled >1% past decision close |
+
+Trailing-stop grid on the exact engine math (dev window): 50 bps −$18.49
+(12 trades), 75 bps +$29.18 (8 trades), 100 bps +$24.37 (8 trades) — 75 bps
+is the winner; 50 bps whipsaws out of every rebound. The breakeven gate on
+the trailing stop (revision 2026-11-15 ~19:20 WIB) adds +$0.09 and cuts
+trades 8 → 5: the round trip that trailed out at −$9.31 instead holds
+through the dip and rides the same rebound. Alternatives grid-searched and
+rejected: tranche-2 half-size +$22.00, DROP2 300 bps +$13.74, falling-close
+entry confirmation and peak-reset-on-tranche-2 both no-ops (+$29.18).
 
 ## Local dev-grade result (kit's frozen dev window, 1,440 bars)
 
 | Metric | Value |
 |---|---|
-| Net PnL | **+$29.18** (final cash $1,029.18) |
-| Trades | 8 filled orders (4 round trips) |
-| Max drawdown | 1.92% (guardrail: ≤ 25%) |
+| Net PnL | **+$29.27** (final cash $1,029.27) |
+| Trades | 5 filled orders (2 round trips) |
+| Max drawdown | 1.91% (guardrail: ≤ 25%) |
 | Guardrail trades | ≥ 1: yes |
-| Determinism | two full protocol runs: byte-identical reply streams (sha256 `f045cc64d0e0696768aeeb2ce4560d58913b1d6be83e948cc0bdf3d52b9df8ea`) |
+| Determinism | two full protocol runs: byte-identical reply streams (sha256 `72e0f48f965cb5141c3ac0d74310867451d063d3df7ccef4bf042d36f4f0fe0a`) |
 
 Trade log (dev window): buy $1,000-equivalent in two tranches near the
-deep dip around bar 995–1031 (~$62.3–63.0k), trailing stop exits the first
-round trip at a small loss (−$12.63), the second tranche rides the rebound
-to ~$64.7k (+$36.97). Two earlier small winning round trips (+$7.73,
-+$7.66) complete the total.
+deep dip around bar 995–1031 (~$62.3–63.0k), hold through the dip (the
+breakeven-gated trailing stop does not fire while underwater), ride the
+rebound to ~$64.8k (+$28.19). One earlier small winning round trip
+(+$1.08) completes the total.
 
 ## Method
 
@@ -58,7 +68,7 @@ breakout, and dip families. The chosen parameters were then implemented
 in `main.py` (integer comparisons only) and verified by driving the real
 bot subprocess through the `agent-fun/bars-replay/v1` protocol over the
 full dev dataset: the bot's result matches the offline simulation exactly
-(+$29.18, 8 trades, 1.92% max DD).
+(+$29.27, 5 trades, 1.91% max DD).
 
 ## Caveats
 
